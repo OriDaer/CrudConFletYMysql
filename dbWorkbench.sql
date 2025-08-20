@@ -95,3 +95,12 @@ INSERT INTO clientes (nombre, apellido, email,dni, telefono, direccion) VALUES
 ('Benjamín', 'Sosa', 'benjamin.sosa@example.com', '52709475','1190123456', 'Mar del Plata'),
 ('Emma', 'Castro', 'emma.castro@example.com', '49909475','1101234567', 'Neuquén'),
 ('Thiago', 'Molina', 'thiago.molina@example.com', '42709475','1121345678', 'San Juan');
+INSERT INTO proveedores (nombre, email, telefono, direccion) VALUES
+('Repuestos Córdoba', 'contacto@repcba.com', '3511234567', 'Av. Colón 1234, Córdoba'),
+('Lubricantes del Sur', 'ventas@lubrisur.com', '2217654321', 'Calle 9 N°450, La Plata'),
+('Frenos y Más', 'info@frenosymas.com', '3419876543', 'San Martín 789, Rosario'),
+('Motores Mendoza', 'soporte@motoresmza.com', '2615556677', 'Av. San Martín 2500, Mendoza'),
+('Carrocerías Norte', 'carrocerias@norte.com', '3814445566', 'Belgrano 150, Tucumán'),
+('Baterías del Litoral', 'ventas@batlitoral.com', '3793322110', 'Av. Costanera 500, Corrientes'),
+('Accesorios Patagonia', 'contacto@patagoniaacc.com', '2944556677', 'Mitre 890, Bariloche');
+select * from proveedores;
