@@ -1,13 +1,11 @@
-#crear un inicio y recien ahi te muetre todas las barras de tareas 
 import flet as ft
 import mysql.connector
+from ficha_tecnica import Herramienta_FichaTecnica
+from repuesto import Herramienta_Repuesto
+from empleados import Herramienta_Empleado
 from cliente import Herramienta_Cliente
 from proveedores import Herramienta_Proveedor
-# from producto import Herramienta_Producto
-
-from usuario import Herramienta_Usuario
-from cliente import Herramienta_Cliente
-#from vehiculos import Herramienta_Vehiculo
+#from usuario import Herramienta_Usuario  xq si no m pega uno arriba d otro
 
 def connect_to_db():
     try:
@@ -26,68 +24,63 @@ def connect_to_db():
         print('Conexión errónea')
         print(ex)
         return None
+
 connection = connect_to_db()
+cursor = connection.cursor() if connection else None
+
 def identificacion(page: ft.Page):
     page.clean()
-    page.title="Login"
-    page_bgcolor= ft.Colors.YELLOW_500
-    page.windows.maximized=True
-    page.window_resizable =False
-    page.window_center=True #centra la ventana en la pantalla
+    page.title = "Login"
+    page.bgcolor = ft.Colors.YELLOW_50
+    page.window.maximized = True
+    page.window_resizable = False
+    page.window_center = True
 
-    usuario=ft.TextField(label="Usuario", width=300)
-    contraseña=ft.TextField(label="Contraseña", password=True, can_reveal_password=True,width=300) #can_reveal_password permite mostrar la contraseña al hacer clic en el icono de ojo
+    usuario = ft.TextField(label="Usuario", width=300)
+    contraseña = ft.TextField(label="Contraseña", password=True, can_reveal_password=True, width=300)
 
-    formulario=ft.Column(
-        controls=[
-            ft.Text("iniciar sesión",size=35, weight=ft.FrontWeight.BOLD), #
-            usuario,
-            contraseña,
-        ],alignment=ft.MainAxisAlignment.CENTER, # Alinea los controles al centro
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER, # Alinea los controles horizontalmente al centro
-        spacing=20 # Espacio entre los controles
-    )
     def boton_login_click(e):
-        consulta= '''
-        select usuario,contraseña
-        from detalle_usuario 
-        where usuario=%s and contraseña=%s
+        consulta = '''
+        SELECT usuario, contraseña
+        FROM detalle_usuario
+        WHERE usuario=%s AND contraseña=%s
         '''
         cursor.execute(consulta, (usuario.value, contraseña.value))
         datos_usuario = cursor.fetchone()
         if datos_usuario:
-            print('usuario y contraseña correctos')
+            print('Usuario y contraseña correctos', usuario.value)
             page.clean()
             menu_principal(page)
         else:
-            print('usuario o contraseña incorrectos')
-            page.bgcolor=ft.Colors.BLUE_500
+            print('Usuario o contraseña incorrectos')
+            page.bgcolor = ft.Colors.RED_100
             page.add(
-                ft.Text("Error:Usuario o contraseña incorrectos", color="red"),
+                ft.Text("Error: Usuario o contraseña incorrectos", color="red"),
                 ft.ElevatedButton("Intentar nuevamente", on_click=lambda e: identificacion(page))
             )
-            #btn de loogin
+
     boton_login = ft.ElevatedButton(text="Iniciar Sesión", on_click=boton_login_click, width=150)
-    #contenedor p el formulario
-    form_content=ft.Column(
+
+    form_content = ft.Column(
         controls=[
             ft.Text("Iniciar Sesión", size=35, weight=ft.FontWeight.BOLD),
             usuario,
             contraseña,
             boton_login
         ],
-        alignment=ft.MainAxisAlignment.CENTER, # Alinea los controles al centro
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER, # Alinea los controles horizontalmente al centro
-        spacing=20 # Espacio entre los controles
+        alignment=ft.MainAxisAlignment.CENTER,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        spacing=20
     )
-    #agregar el contenedor principal a la pg con alineación central
+
     page.add(
         ft.Container(
             content=form_content,
-            alignment=ft.alignment.center, # Alinea el contenedor al centro de la
-            width=400, # Ancho del contenedor
-        ))
-    
+            alignment=ft.alignment.center,
+            width=400,
+        )
+    )
+
 def menu_principal(page: ft.Page): #el page: sirve para que se pueda usar el page dentro de la función y el ft.Page es el tipo de dato que se espera 
     page.bgcolor = ft.Colors.PINK_50 # Color de fondo de la página
     page.window.maximized=True#maximiza la ventana
@@ -191,9 +184,9 @@ def menu_principal(page: ft.Page): #el page: sirve para que se pueda usar el pag
         items=[
             ft.PopupMenuItem(content=cliente_item, on_click=lambda e: cliente(e, page)),
             ft.PopupMenuItem(content=proveedor_item, on_click=lambda e:proveedor(e, page)),
-            ft.PopupMenuItem(content=producto_item,on_click=lambda e: producto(e, page)), 
-            ft.PopupMenuItem(content=repuesto_item, on_click=lambda e: producto(e, page)),
-            ft.PopupMenuItem(content=empleado_item, on_click=lambda e: empleado(e, page)),
+        #    ft.PopupMenuItem(content=producto_item,on_click=lambda e: producto(e, page)), 
+            ft.PopupMenuItem(content=repuesto_item, on_click=lambda e: repuesto(e, page)),
+            ft.PopupMenuItem(content=empleado_item, on_click=lambda e: empleados(e, page)),
             #ft.PopupMenuItem(content=usuario_item, on_click=lambda e: usuario(e, page)),
         ],
         #--content es el contenido que se muestra en el elemento del menú
@@ -262,21 +255,18 @@ def menu_principal(page: ft.Page): #el page: sirve para que se pueda usar el pag
 
 def cliente(e, page: ft.Page):
     Herramienta_Cliente(page, menu_principal)
+
 def proveedor(e, page: ft.Page):
     Herramienta_Proveedor(page, menu_principal)
-    
-def producto(e, page: ft.Page):
-    pass
-def empleado(e, page: ft.Page):
-    pass
-#def usuario(e, page: ft.Page): #sirve basicamente para llamar a la clase Herramienta_Usuario y mostrar la ventana de gestión de usuarios
-#   Herramienta_Usuario(page, menu_principal)# 
+
+def repuesto(e, page: ft.Page):
+    Herramienta_Repuesto(page, menu_principal)
+def empleados(e, page: ft.Page):
+    Herramienta_Empleado(page, menu_principal)
+def ficha_tecnica(e, page: ft.Page):
+    Herramienta_FichaTecnica(page, menu_principal)
 
 def main(page: ft.Page):
-    page.window.maximized = True
-    menu_principal(page)
+    identificacion(page)
 
-ft.app(target=main) #sirve para ejecutar la aplicación y pasarle la función main como objetivo
-#ft.app(main, view=ft.AppView.WEB_BROWSER) 
-
-#login con los permisos de usuario y contraseña y recien se ve el menu principal
+ft.app(target=main)

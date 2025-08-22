@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS empleados (
   nombre VARCHAR(100),
   apellido VARCHAR(100),
   email VARCHAR(100),
-  telefono VARCHAR(20),
-  puesto VARCHAR(100)
+  puesto VARCHAR(100),
+  telefono VARCHAR(20)
 );
 CREATE TABLE vehiculos (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -60,6 +60,7 @@ CREATE TABLE ficha_tecnica (
     id_empleado INT NOT NULL,
     descripcion VARCHAR(255),
     fecha DATE,
+    costo_mano_obra decimal(10,2)not null ,
     FOREIGN KEY (id_vehiculo) REFERENCES vehiculos(id),
     FOREIGN KEY (id_cliente) REFERENCES clientes(id),
     FOREIGN KEY (id_empleado) REFERENCES empleados(id)
@@ -67,11 +68,11 @@ CREATE TABLE ficha_tecnica (
 
 CREATE TABLE detalle_ficha_tecnica (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    id_ficha_tecnica INT,
-    id_repuesto INT,
-    cantidad INT,
-    precio_unitario DECIMAL(10,2),
-    importe_total DECIMAL(10,2),
+    id_ficha_tecnica INT not null,
+    id_repuesto INT not null,
+    cantidad INT not null,
+    precio_unitario DECIMAL(10,2) not null,
+    importe_total DECIMAL(10,2) not null,
     FOREIGN KEY (id_ficha_tecnica) REFERENCES ficha_tecnica(id),
     FOREIGN KEY (id_repuesto) REFERENCES repuestos(id)
 );
@@ -83,7 +84,17 @@ CREATE TABLE facturacion (
     fecha DATE,
     FOREIGN KEY (id_cliente) REFERENCES clientes(id)
 );
-ALTER TABLE ficha_tecnica ADD costo_mano_obra DECIMAL(10,2);
+CREATE TABLE `detalle_usuario` (
+  `id` int AUTO_INCREMENT PRIMARY KEY,
+  `usuario` varchar(255) NOT NULL UNIQUE,
+  `contraseña` varchar(255) NOT NULL,
+  `nombre` varchar(255),
+  `email` varchar(255)
+);
+INSERT INTO `detalle_usuario` (`usuario`, `contraseña`, `nombre`, `email`) VALUES
+('admin', 'admin123', 'Administrador', 'admin@taller.com'),
+('user1', 'user123', 'Usuario 1', 'user1@taller.com'),
+('user2', 'user234', 'Usuario 2', 'user2@taller.com');
 INSERT INTO clientes (nombre, apellido, email,dni, telefono, direccion) VALUES
 ('Lucía', 'Gómez', 'lucia.gomez@example.com', '47709475','1123456789', 'Buenos Aires'),
 ('Mateo', 'Fernández', 'mateo.fernandez@example.com','47009475', '1134567890', 'Rosario'),
@@ -103,4 +114,8 @@ INSERT INTO proveedores (nombre, email, telefono, direccion) VALUES
 ('Carrocerías Norte', 'carrocerias@norte.com', '3814445566', 'Belgrano 150, Tucumán'),
 ('Baterías del Litoral', 'ventas@batlitoral.com', '3793322110', 'Av. Costanera 500, Corrientes'),
 ('Accesorios Patagonia', 'contacto@patagoniaacc.com', '2944556677', 'Mitre 890, Bariloche');
+INSERT INTO repuestos (nombre, marca, precio, stock) VALUES
+('Filtro de aceite', 'Bosch', 15.99, 50),
+('Pastillas de freno', 'Brembo', 45.50, 30);
+
 select * from proveedores;
