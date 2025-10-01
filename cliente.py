@@ -21,26 +21,17 @@ def connect_to_db():
 
 class Herramienta_Cliente:
     def __init__(self, page: ft.Page, main_menu_callback):
-        self.page = page #page sirve para acceder a la página y sus controles y ft es el objeto de la página 
-        self.main_menu_callback = main_menu_callback # Callback para volver al menú principal
+        self.page = page
+        self.main_menu_callback = main_menu_callback
         self.connection = connect_to_db()
-        self.cursor = self.connection.cursor() if self.connection else None #el if self.connection es para verificar si la conexión a la base de datos fue exitosa 
+        self.cursor = self.connection.cursor() if self.connection else None
         self.mostrar_cliente()
-#self.cursor sirve para ejecutar consultas a la base de datos y obtener resultados
-    def mostrar_cliente(self):
-        self.page.clean() # Limpia la página antes de mostrar el cliente
-        apellidos = []
-        if self.cursor:
-            self.cursor.execute("SELECT DISTINCT apellido FROM clientes ORDER BY apellido ASC")
-            apellidos = [row[0] for row in self.cursor.fetchall()] #row es una tupla que contiene los resultados de la consulta y el [0] es para obtener el primer elemento de la tupla, que es el apellido 
-#fetchall() sirve para obtener todos los resultados de la consulta y el [0] es para obtener el primer elemento de cada fila
-        self.dropdown_busqueda = ft.Dropdown(
-            label="Filtrar por Apellido",
-            options=[ft.dropdown.Option(ap) for ap in apellidos],
-            width=250,
-            on_change=self.consulta_cliente # on_change es un evento que se dispara cuando se selecciona un elemento del dropdown
-        )
-        buscar_btn = ft.ElevatedButton(text="Consulta", on_click=self.consulta_cliente)
+
+    def mostrar_cliente(self, e=None):
+        self.page.clean()
+        self.caja_busqueda = ft.TextField(label="Buscar por Apellido", width=300)
+
+        buscar_btn = ft.ElevatedButton(text="Buscar", on_click=lambda e: self.consulta_cliente(e,self.caja_busqueda.value))
         header = ft.Row(
             controls=[
                 ft.Text("Herramienta de Gestión de Clientes", size=20, weight="bold"),
@@ -52,57 +43,65 @@ class Herramienta_Cliente:
             vertical_alignment=ft.CrossAxisAlignment.CENTER
         )
 
-        self.data_table = self.create_client_table()
+        self.tabla_De_Datos = self.crear_tablaCliente()
+
         self.page.add(
             ft.Container(
                 content=ft.Column(
                     controls=[
-                        self.dropdown_busqueda,
+                        self.caja_busqueda,
                         buscar_btn,
                         header,
-                        self.data_table
+                        self.tabla_De_Datos
                     ],
-                    alignment=ft.MainAxisAlignment.START, #
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER, 
+                    alignment=ft.MainAxisAlignment.START,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
                 padding=20
             )
         )
+
     def volver_al_menu(self, e):
         self.page.clean()
         self.main_menu_callback(self.page)
-    def create_client_table(self, filtro_apellido=None):
+
+    def crear_tablaCliente(self, filtro_apellido=None):
         if not self.cursor:
             return ft.Text("No hay conexión a la base de datos")
-        if filtro_apellido:
-            query = """
-                SELECT apellido, nombre, email, dni, direccion, telefono, id
-                FROM clientes 
-                WHERE apellido = %s
-                ORDER BY apellido
-            """
-            self.cursor.execute(query, (filtro_apellido,)) 
-        else:
-            query = """
-                SELECT apellido, nombre, email, dni, direccion, telefono, id
-                FROM clientes 
-                ORDER BY apellido
-            """
-            self.cursor.execute(query)
 
-        datos_clientes = self.cursor.fetchall() 
+        if filtro_apellido:
+            consulta = """
+                SELECT p.apellido, p.nombre, p.email, c.dni, p.direccion, p.telefono, p.id
+                FROM persona p
+                JOIN cliente c ON c.id_persona = p.id
+                WHERE p.apellido = %s
+                ORDER BY p.apellido
+            """
+            self.cursor.execute(consulta, (filtro_apellido,))
+        else:
+            consulta = """
+                SELECT p.apellido, p.nombre, p.email, c.dni, p.direccion, p.telefono, p.id
+                FROM persona p
+                JOIN cliente c ON c.id_persona = p.id
+                ORDER BY p.apellido
+            """
+            self.cursor.execute(consulta)
+
+        datos_clientes = self.cursor.fetchall()
         if not datos_clientes:
             return ft.Text("No hay clientes registrados", size=16, color="red")
+
         rows = []
         for cliente in datos_clientes:
-            #flecha-icon sirve para mostrar una flecha al lado del apellido del cliente
-            flecha_icon = ft.Icon(name=ft.icons.ARROW_RIGHT, color="blue") if filtro_apellido and cliente[0] == filtro_apellido else ft.Container(width=24)
+            flecha_icon = ft.Icon(name=ft.Icons.ARROW_RIGHT, color="blue") if filtro_apellido and cliente[0] == filtro_apellido else ft.Container(width=24)
+            
             eliminar_button = ft.Container(
                 content=ft.Image(src="iconos/bote-de-basura.png", width=28, height=28, tooltip="Borrar"),
-                on_click=lambda e, c=cliente: self.eliminar_cliente(e, c), 
+                on_click=lambda e, c=cliente: self.eliminar_cliente(e, c),
                 ink=True,
                 padding=5
             )
+
             actualizar_button = ft.Container(
                 content=ft.Image(src="iconos/modificar.png", width=28, height=28, tooltip="Modificar"),
                 on_click=lambda e, c=cliente: self.actualizar_cliente(e, c),
@@ -110,24 +109,23 @@ class Herramienta_Cliente:
                 padding=5
             )
 
-            rows.append( # no uso add porque estoy creando una tabla
-                #ft.DataRow sirve para crear una fila de datos en la tabla
+            rows.append(
                 ft.DataRow(
                     cells=[
                         ft.DataCell(flecha_icon),
-                        ft.DataCell(ft.Text(cliente[0])),  # Apellido
-                        ft.DataCell(ft.Text(cliente[1])),  # Nombre
-                        ft.DataCell(ft.Text(cliente[2])),  # Email
-                        ft.DataCell(ft.Text(cliente[3])),  # DNI
-                        ft.DataCell(ft.Text(cliente[4])),  # Dirección
-                        ft.DataCell(ft.Text(cliente[5])),  # Teléfono
+                        ft.DataCell(ft.Text(cliente[0])),
+                        ft.DataCell(ft.Text(cliente[1])),
+                        ft.DataCell(ft.Text(cliente[2])),
+                        ft.DataCell(ft.Text(cliente[3])),
+                        ft.DataCell(ft.Text(cliente[4])),
+                        ft.DataCell(ft.Text(cliente[5])),
                         ft.DataCell(ft.Text(str(cliente[6]))),
                         ft.DataCell(ft.Row(controls=[eliminar_button, actualizar_button]))
                     ],
                 ),
             )
 
-        return ft.DataTable( # ft.datatable sirve para crear una tabla de datos y ft.datarow sirve para crear una fila de datos en la tabla
+        return ft.DataTable(
             columns=[
                 ft.DataColumn(ft.Text(" ")),
                 ft.DataColumn(ft.Text("Apellido")),
@@ -143,19 +141,29 @@ class Herramienta_Cliente:
         )
 
     def eliminar_cliente(self, e, cliente):
-        if not self.cursor:
-            return
-        try:
-            consulta = "DELETE FROM clientes WHERE id = %s"
-            self.cursor.execute(consulta, (cliente[6],))
-            self.connection.commit()
-            self.mostrar_cliente()
-        except Exception as ex:
-            print("Error al eliminar cliente:", ex)
+        cliente_id = cliente[6]  # id de persona
+        apellido = cliente[0]
+        nombre = cliente[1]
+    
+        # Creamos el diálogo de confirmación
+        dialogo_confirmar = ft.AlertDialog(
+            title=ft.Text("Confirmar eliminación"),
+            content=ft.Text(f"¿Desea eliminar al cliente {apellido} {nombre}?"),
+            actions=[
+                ft.TextButton("Sí", on_click=lambda e: self.confirmar_eliminar(dialogo_confirmar, cliente_id)),
+                ft.TextButton("No", on_click=lambda e: self.cancelar_eliminar(dialogo_confirmar))
+            ],
+            modal=True
+        )
+    
+        self.page.dialog = dialogo_confirmar
+        self.page.update()
+
+
 
     def actualizar_cliente(self, e, cliente):
         self.page.clean()
-        self.cliente_a_modificar_id = cliente[6] 
+        self.cliente_a_modificar_id = cliente[6]
         self.apellido = ft.TextField(label="Apellido", width=300, value=cliente[0])
         self.nombre = ft.TextField(label="Nombre", width=300, value=cliente[1])
         self.email = ft.TextField(label="Email", width=300, value=cliente[2])
@@ -186,17 +194,18 @@ class Herramienta_Cliente:
             return
         try:
             consulta = """
-                UPDATE clientes
-                SET apellido = %s,
-                    nombre = %s,
-                    email = %s,
-                    dni = %s,
-                    direccion = %s,
-                    telefono = %s
-                WHERE id = %s
+                UPDATE persona p
+                JOIN cliente c ON c.id_persona = p.id
+                SET p.apellido = %s,
+                    p.nombre = %s,
+                    p.email = %s,
+                    c.dni = %s,
+                    p.direccion = %s,
+                    p.telefono = %s
+                WHERE p.id = %s
             """
             datos = (
-                self.apellido.value.strip(), #strip() para eliminar los espacios en blanco al inicio y al final de la cadena
+                self.apellido.value.strip(),
                 self.nombre.value.strip(),
                 self.email.value.strip(),
                 self.dni.value.strip(),
@@ -242,33 +251,37 @@ class Herramienta_Cliente:
         if not self.cursor:
             return
         try:
-            consulta = """
-                INSERT INTO clientes (apellido, nombre, email, dni, direccion, telefono)
-                VALUES (%s, %s, %s, %s, %s, %s)
+            # Insertar en persona
+            consulta_persona = """
+                INSERT INTO persona (apellido, nombre, email, telefono, direccion)
+                VALUES (%s, %s, %s, %s, %s)
             """
-            datos = (
+            datos_persona = (
                 self.apellido.value.strip(),
                 self.nombre.value.strip(),
                 self.email.value.strip(),
-                self.dni.value.strip(),
-                self.direccion.value.strip(),
-                self.telefono.value.strip()
+                self.telefono.value.strip(),
+                self.direccion.value.strip()
             )
-            self.cursor.execute(consulta, datos)
-            self.connection.commit() # sirve para guardar los cambios en la base de datos
+            self.cursor.execute(consulta_persona, datos_persona)
+            id_nueva_persona = self.cursor.lastrowid
+
+            # Insertar en cliente
+            consulta_cliente = "INSERT INTO cliente (id_persona, dni) VALUES (%s, %s)"
+            self.cursor.execute(consulta_cliente, (id_nueva_persona, self.dni.value.strip()))
+            self.connection.commit()
             self.mostrar_cliente()
         except Exception as ex:
             print("Error al guardar cliente:", ex)
 
-    def consulta_cliente(self, e): 
-        apellido_seleccionado = self.dropdown_busqueda.value  #
-        if apellido_seleccionado:
-            self.data_table = self.create_client_table(filtro_apellido=apellido_seleccionado) 
+    def consulta_cliente(self, e, apellido_buscado):
+        if apellido_buscado:
+            self.tabla_De_Datos= self.crear_tablaCliente(filtro_apellido=apellido_buscado)
         else:
-            self.data_table = self.create_client_table() 
-        # Actualizar la tabla en la página
-        self.page.controls[0].content.controls[3] = self.data_table
-        self.page.update()
+            self.tabla_De_Datos = self.crear_tablaCliente()
+        
+        self.page.controls[0].content.controls[3] = self.tabla_De_Datos 
+        self.page.update()  
 
 def main_menu_callback(page: ft.Page):
     page.clean()

@@ -1,5 +1,6 @@
 import flet as ft
 import mysql.connector
+
 def connect_to_db():
     try:
         connection = mysql.connector.connect(
@@ -17,26 +18,26 @@ def connect_to_db():
         print('Conexión errónea')
         print(ex)
         return None
+
+
 class Herramienta_Proveedor:
+    
     def __init__(self, page: ft.Page, main_menu_callback):
         self.page = page
         self.main_menu_callback = main_menu_callback
         self.connection = connect_to_db()
         self.cursor = self.connection.cursor() if self.connection else None
         self.mostrar_proveedor()
-    def mostrar_proveedor(self):
+
+    def mostrar_proveedor(self, e=None):
         self.page.clean()
-        nombres = []
-        if self.cursor:
-            self.cursor.execute("SELECT DISTINCT nombre FROM proveedores ORDER BY nombre ASC")
-            nombres = [row[0] for row in self.cursor.fetchall()]
-        self.dropdown_busqueda = ft.Dropdown(
-            label="Filtrar por Nombre",
-            options=[ft.dropdown.Option(n) for n in nombres],
-            width=250,
-            on_change=self.consulta_proveedor
+        self.caja_busqueda = ft.TextField(label="Buscar por Empresa", width=300)
+
+        buscar_btn = ft.ElevatedButton(
+            text="Buscar",
+            on_click=lambda e: self.consulta_proveedor(e, self.caja_busqueda.value)
         )
-        buscar_btn = ft.ElevatedButton(text="Consulta", on_click=self.consulta_proveedor)
+
         header = ft.Row(
             controls=[
                 ft.Text("Herramienta de Gestión de Proveedores", size=20, weight="bold"),
@@ -47,15 +48,17 @@ class Herramienta_Proveedor:
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             vertical_alignment=ft.CrossAxisAlignment.CENTER
         )
-        self.data_table = self.create_proveedor_table()
+
+        self.tabla_De_Datos = self.crear_tablaProveedor()
+
         self.page.add(
             ft.Container(
                 content=ft.Column(
                     controls=[
-                        self.dropdown_busqueda,
+                        self.caja_busqueda,
                         buscar_btn,
                         header,
-                        self.data_table
+                        self.tabla_De_Datos
                     ],
                     alignment=ft.MainAxisAlignment.START,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -63,177 +66,240 @@ class Herramienta_Proveedor:
                 padding=20
             )
         )
+
     def volver_al_menu(self, e):
         self.page.clean()
         self.main_menu_callback(self.page)
-    def create_proveedor_table(self, filtro_nombre=None):
+
+    def crear_tablaProveedor(self, filtro_empresa=None):
         if not self.cursor:
             return ft.Text("No hay conexión a la base de datos")
-        if filtro_nombre:
-            query = """
-                SELECT nombre, email, telefono, direccion, id
-                FROM proveedores
-                WHERE nombre = %s
-                ORDER BY nombre
+
+        if filtro_empresa:
+            consulta = """
+                SELECT p.apellido, p.nombre, p.email, pr.empresa, p.direccion, p.telefono, p.id
+                FROM persona p
+                JOIN proveedor pr ON pr.id_persona = p.id
+                WHERE pr.empresa = %s
+                ORDER BY pr.empresa
             """
-            self.cursor.execute(query, (filtro_nombre,))
+            self.cursor.execute(consulta, (filtro_empresa,))
         else:
-            query = """
-                SELECT nombre, email, telefono, direccion, id
-                FROM proveedores
-                ORDER BY nombre
+            consulta = """
+                SELECT p.apellido, p.nombre, p.email, pr.empresa, p.direccion, p.telefono, p.id
+                FROM persona p
+                JOIN proveedor pr ON pr.id_persona = p.id
+                ORDER BY pr.empresa
             """
-            self.cursor.execute(query)
+            self.cursor.execute(consulta)
+
         datos_proveedores = self.cursor.fetchall()
         if not datos_proveedores:
             return ft.Text("No hay proveedores registrados", size=16, color="red")
+
         rows = []
         for proveedor in datos_proveedores:
-            flecha_icon = ft.Icon(name=ft.icons.ARROW_RIGHT, color="blue") if filtro_nombre and proveedor[0] == filtro_nombre else ft.Container(width=24)
             eliminar_button = ft.Container(
                 content=ft.Image(src="iconos/bote-de-basura.png", width=28, height=28, tooltip="Borrar"),
-                on_click=lambda e, p=proveedor: self.eliminar_proveedor(e, p),
+                on_click=lambda e, c=proveedor: self.eliminar_proveedor(e, c),
                 ink=True,
                 padding=5
             )
+
             actualizar_button = ft.Container(
                 content=ft.Image(src="iconos/modificar.png", width=28, height=28, tooltip="Modificar"),
-                on_click=lambda e, p=proveedor: self.actualizar_proveedor(e, p),
+                on_click=lambda e, c=proveedor: self.actualizar_proveedor(e, c),
                 ink=True,
                 padding=5
             )
+
             rows.append(
                 ft.DataRow(
                     cells=[
-                        ft.DataCell(flecha_icon),
-                        ft.DataCell(ft.Text(proveedor[0])),  # Nombre
-                        ft.DataCell(ft.Text(proveedor[1])),  # Email
-                        ft.DataCell(ft.Text(proveedor[2])),  # Teléfono
-                        ft.DataCell(ft.Text(proveedor[3])),  # Dirección
-                        ft.DataCell(ft.Text(str(proveedor[4]))),  # ID
+                        ft.DataCell(ft.Text(proveedor[0])),  # Apellido
+                        ft.DataCell(ft.Text(proveedor[1])),  # Nombre
+                        ft.DataCell(ft.Text(proveedor[2])),  # Email
+                        ft.DataCell(ft.Text(proveedor[3])),  # Empresa
+                        ft.DataCell(ft.Text(proveedor[4])),  # Dirección
+                        ft.DataCell(ft.Text(proveedor[5])),  # Teléfono
+                        ft.DataCell(ft.Text(str(proveedor[6]))),  # ID Persona
                         ft.DataCell(ft.Row(controls=[eliminar_button, actualizar_button]))
                     ],
                 ),
             )
+
         return ft.DataTable(
             columns=[
-                ft.DataColumn(ft.Text(" ")),
+                ft.DataColumn(ft.Text("Apellido")),
                 ft.DataColumn(ft.Text("Nombre")),
                 ft.DataColumn(ft.Text("Email")),
-                ft.DataColumn(ft.Text("Teléfono")),
+                ft.DataColumn(ft.Text("Empresa")),
                 ft.DataColumn(ft.Text("Dirección")),
-                ft.DataColumn(ft.Text("Código")),
+                ft.DataColumn(ft.Text("Teléfono")),
+                ft.DataColumn(ft.Text("Código Persona")),
                 ft.DataColumn(ft.Text("Acciones")),
             ],
             rows=rows,
         )
+
     def eliminar_proveedor(self, e, proveedor):
-        if not self.cursor:
-            return
-        try:
-            consulta = "DELETE FROM proveedores WHERE id = %s"
-            self.cursor.execute(consulta, (proveedor[4],))
-            self.connection.commit()
-            self.mostrar_proveedor()
-        except Exception as ex:
-            print("Error al eliminar proveedor:", ex)
+        proveedor_id = proveedor[6]
+        empresa = proveedor[3]
+
+        dialogo_confirmar = ft.AlertDialog(
+            title=ft.Text("Confirmar eliminación"),
+            content=ft.Text(f"¿Desea eliminar al proveedor de la empresa {empresa}?"),
+            actions=[
+                ft.TextButton("Sí", on_click=lambda e: self.confirmar_eliminar(dialogo_confirmar, proveedor_id)),
+                ft.TextButton("No", on_click=lambda e: self.cancelar_eliminar(dialogo_confirmar))
+            ],
+            modal=True
+        )
+
+        self.page.dialog = dialogo_confirmar
+        self.page.update()
+
+    def confirmar_eliminar(self, dialogo, proveedor_id):
+        self.cursor.execute("DELETE FROM proveedor WHERE id_persona=%s", (proveedor_id,))
+        self.cursor.execute("DELETE FROM persona WHERE id=%s", (proveedor_id,))
+        self.connection.commit()
+        self.page.dialog = None
+        self.mostrar_proveedor()
+
+    def cancelar_eliminar(self, dialogo):
+        self.page.dialog = None
+        self.page.update()
+
     def actualizar_proveedor(self, e, proveedor):
         self.page.clean()
-        self.proveedor_a_modificar_id = proveedor[4]
-        self.nombre = ft.TextField(label="Nombre", width=300, value=proveedor[0])
-        self.email = ft.TextField(label="Email", width=300, value=proveedor[1])
-        self.telefono = ft.TextField(label="Teléfono", width=300, value=proveedor[2])
-        self.direccion = ft.TextField(label="Dirección", width=300, value=proveedor[3])
+        self.proveedor_a_modificar_id = proveedor[6]
+        self.apellido = ft.TextField(label="Apellido", width=300, value=proveedor[0])
+        self.nombre = ft.TextField(label="Nombre", width=300, value=proveedor[1])
+        self.email = ft.TextField(label="Email", width=300, value=proveedor[2])
+        self.empresa = ft.TextField(label="Empresa", width=300, value=proveedor[3])
+        self.direccion = ft.TextField(label="Dirección", width=300, value=proveedor[4])
+        self.telefono = ft.TextField(label="Teléfono", width=300, value=proveedor[5])
+
         guardar_btn = ft.ElevatedButton(text="Guardar Cambios", on_click=self.guardar_modificacion_proveedor)
         volver_btn = ft.ElevatedButton(text="Volver", on_click=self.mostrar_proveedor)
         self.page.add(
             ft.Column(
                 controls=[
                     ft.Text("Modificar Proveedor", size=24, weight="bold"),
+                    self.apellido,
                     self.nombre,
                     self.email,
-                    self.telefono,
+                    self.empresa,
                     self.direccion,
+                    self.telefono,
                     ft.Row(controls=[guardar_btn, volver_btn], alignment=ft.MainAxisAlignment.CENTER)
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER
             )
         )
+
     def guardar_modificacion_proveedor(self, e):
-        if not self.cursor:
-            return
-        try:
-            consulta = """
-                UPDATE proveedores
-                SET nombre = %s,
-                    email = %s,
-                    telefono = %s,
-                    direccion = %s
-                WHERE id = %s
-            """
-            datos = (
-                self.nombre.value.strip(),
-                self.email.value.strip(),
-                self.telefono.value.strip(),
-                self.direccion.value.strip(),
-                self.proveedor_a_modificar_id
-            )
-            self.cursor.execute(consulta, datos)
-            self.connection.commit()
-            self.mostrar_proveedor()
-        except Exception as ex:
-            print("Error al actualizar proveedor:", ex)
+        consulta = """
+            UPDATE persona p
+            JOIN proveedor pr ON pr.id_persona = p.id
+            SET p.apellido = %s,
+                p.nombre = %s,
+                p.email = %s,
+                pr.empresa = %s,
+                p.direccion = %s,
+                p.telefono = %s
+            WHERE p.id = %s
+        """
+        datos = (
+            self.apellido.value.strip(),
+            self.nombre.value.strip(),
+            self.email.value.strip(),
+            self.empresa.value.strip(),
+            self.direccion.value.strip(),
+            self.telefono.value.strip(),
+            self.proveedor_a_modificar_id
+        )
+        self.cursor.execute(consulta, datos)
+        self.connection.commit()
+        self.mostrar_proveedor()
+
     def formulario_alta_proveedor(self, e):
         self.page.clean()
+        self.apellido = ft.TextField(label="Apellido", width=300)
         self.nombre = ft.TextField(label="Nombre", width=300)
         self.email = ft.TextField(label="Email", width=300)
-        self.telefono = ft.TextField(label="Teléfono", width=300)
+        self.empresa = ft.TextField(label="Empresa", width=300)
         self.direccion = ft.TextField(label="Dirección", width=300)
+        self.telefono = ft.TextField(label="Teléfono", width=300)
+
         guardar_btn = ft.ElevatedButton(text="Guardar", on_click=self.guardar_nuevo_proveedor)
         volver_btn = ft.ElevatedButton(text="Volver", on_click=self.mostrar_proveedor)
+
         self.page.add(
             ft.Column(
                 controls=[
                     ft.Text("Alta de Nuevo Proveedor", size=24, weight="bold"),
+                    self.apellido,
                     self.nombre,
                     self.email,
-                    self.telefono,
+                    self.empresa,
                     self.direccion,
+                    self.telefono,
                     ft.Row(controls=[guardar_btn, volver_btn], alignment=ft.MainAxisAlignment.CENTER)
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER
             )
         )
+
     def guardar_nuevo_proveedor(self, e):
-        if not self.cursor:
-            return
-        try:
-            consulta = """
-                INSERT INTO proveedores (nombre, email, telefono, direccion)
-                VALUES (%s, %s, %s, %s)
-            """
-            datos = (
-                self.nombre.value.strip(),
-                self.email.value.strip(),
-                self.telefono.value.strip(),
-                self.direccion.value.strip()
-            )
-            self.cursor.execute(consulta, datos)
-            self.connection.commit()
-            self.mostrar_proveedor()
-        except Exception as ex:
-            print("Error al guardar proveedor:", ex)
-    def consulta_proveedor(self, e):
-        nombre_seleccionado = self.dropdown_busqueda.value
-        if nombre_seleccionado:
-            self.data_table = self.create_proveedor_table(filtro_nombre=nombre_seleccionado)
-        else:
-            self.data_table = self.create_proveedor_table()
-        self.page.controls[0].content.controls[3] = self.data_table
+        self.mensaje = ft.Text("")
+
+    # Chequear campos vacíos
+        if (not self.apellido.value.strip() or
+            not self.nombre.value.strip() or
+            not self.email.value.strip() or
+            not self.telefono.value.strip() or
+            not self.direccion.value.strip() or
+            not self.empresa.value.strip()):
+            # Mostrar mensaje de error y cortar la ejecución
+            self.mensaje.value = "⚠️ Completa todos los campos antes de guardar"
+            self.mensaje.color = "red"
+            self.page.update()
+            return   # con este return NO se guarda nada
+
+        # --- si llega acá es porque todos los campos están completos ---
+        consulta_persona = """
+            INSERT INTO persona (apellido, nombre, email, telefono, direccion)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        datos_persona = (
+            self.apellido.value.strip(),
+            self.nombre.value.strip(),
+            self.email.value.strip(),
+            self.telefono.value.strip(),
+            self.direccion.value.strip()
+        )
+        self.cursor.execute(consulta_persona, datos_persona)
+        id_nueva_persona = self.cursor.lastrowid
+
+        consulta_proveedor = "INSERT INTO proveedor (id_persona, empresa) VALUES (%s, %s)"
+        self.cursor.execute(consulta_proveedor, (id_nueva_persona, self.empresa.value.strip()))
+        self.connection.commit()
+
+        # Mensaje de éxito
+        self.mensaje.value = "✅ Proveedor guardado correctamente"
+        self.mensaje.color = "green"
         self.page.update()
-def main_menu_callback(page: ft.Page):
-    page.clean()
-    page.add(ft.Text("Menú Principal"))
-def main(page: ft.Page):
-    Herramienta_Proveedor(page, main_menu_callback)
-# ft.app(target=main) 
+
+        # Refrescar listado
+        self.mostrar_proveedor()
+
+
+    def consulta_proveedor(self, e, empresa_buscada):
+        if empresa_buscada:
+            self.tabla_De_Datos = self.crear_tablaProveedor(filtro_empresa=empresa_buscada)
+        else:
+            self.tabla_De_Datos = self.crear_tablaProveedor()
+
+        self.page.controls[0].content.controls[3] = self.tabla_De_Datos
+        self.page.update()

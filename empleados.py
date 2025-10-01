@@ -51,7 +51,7 @@ class Herramienta_Empleado:
             vertical_alignment=ft.CrossAxisAlignment.CENTER
         )
 
-        self.data_table = self.create_empleado_table()
+        self.tabla_De_Datos = self.create_empleado_table()
         self.page.add(
             ft.Container(
                 content=ft.Column(
@@ -59,7 +59,7 @@ class Herramienta_Empleado:
                         self.dropdown_busqueda,
                         buscar_btn,
                         header,
-                        self.data_table
+                        self.tabla_De_Datos
                     ],
                     alignment=ft.MainAxisAlignment.START,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -76,27 +76,27 @@ class Herramienta_Empleado:
         if not self.cursor:
             return ft.Text("No hay conexión a la base de datos")
         if filtro_apellido:
-            query = """
+            consulta = """
                 SELECT nombre, apellido, dni, puesto, telefono, id
                 FROM empleados
                 WHERE apellido = %s
                 ORDER BY apellido
             """
-            self.cursor.execute(query, (filtro_apellido,))
+            self.cursor.execute(consulta, (filtro_apellido,))
         else:
-            query = """
+            consulta = """
                 SELECT nombre, apellido, dni, puesto, telefono, id
                 FROM empleados
                 ORDER BY apellido
             """
-            self.cursor.execute(query)
+            self.cursor.execute(consulta)
 
         datos_empleados = self.cursor.fetchall()
         if not datos_empleados:
             return ft.Text("No hay empleados registrados", size=16, color="red")
         rows = []
         for empleado in datos_empleados:
-            flecha_icon = ft.Icon(name=ft.icons.ARROW_RIGHT, color="blue") if filtro_apellido and empleado[1] == filtro_apellido else ft.Container(width=24)
+            flecha_icon = ft.Icon(name=ft.Icons.ARROW_RIGHT, color="blue") if filtro_apellido and empleado[1] == filtro_apellido else ft.Container(width=24)
             eliminar_button = ft.Container(
                 content=ft.Image(src="iconos/bote-de-basura.png", width=28, height=28, tooltip="Borrar"),
                 on_click=lambda e, emp=empleado: self.eliminar_empleado(e, emp),
@@ -253,10 +253,10 @@ class Herramienta_Empleado:
     def consulta_empleado(self, e):
         apellido_seleccionado = self.dropdown_busqueda.value
         if apellido_seleccionado:
-            self.data_table = self.create_empleado_table(filtro_apellido=apellido_seleccionado)
+            self.tabla_De_Datos = self.create_empleado_table(filtro_apellido=apellido_seleccionado)
         else:
-            self.data_table = self.create_empleado_table()
-        self.page.controls[0].content.controls[3] = self.data_table
+            self.tabla_De_Datos = self.create_empleado_table()
+        self.page.controls[0].content.controls[3] = self.tabla_De_Datos
         self.page.update()
 
 def main_menu_callback(page: ft.Page):

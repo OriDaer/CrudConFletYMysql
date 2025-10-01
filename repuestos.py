@@ -5,17 +5,18 @@ def connect_to_db():
     try:
         connection = mysql.connector.connect(
             host='localhost',
-            port='3306',
+            port=3306,
             user='root',
             password='root',
             database='taller_mecanico',
             ssl_disabled=True
         )
         if connection.is_connected():
-            print('Conexión exitosa a la base de datos')
+            print('Conexión exitosa')
             return connection
     except Exception as ex:
-        print('Error de conexión:', ex)
+        print('Conexión errónea')
+        print(ex)
         return None
 
 class Herramienta_Repuesto:
@@ -26,49 +27,32 @@ class Herramienta_Repuesto:
         self.cursor = self.connection.cursor() if self.connection else None
         self.mostrar_repuestos()
 
-    def mostrar_repuestos(self):
+    def mostrar_repuestos(self, e=None):
         self.page.clean()
-
-        # Verificar conexión
-        if not self.connection or not self.cursor:
-            self.page.add(ft.Text("Error: No se pudo conectar a la base de datos.", color="red"))
-            self.page.update()
-            return
-
-        # Obtener marcas
         marcas = []
-        try:
+        if self.cursor:
             self.cursor.execute("SELECT DISTINCT marca FROM repuestos ORDER BY marca ASC")
             marcas = [row[0] for row in self.cursor.fetchall()]
-        except Exception as ex:
-            print("Error al obtener marcas:", ex)
 
-        # Dropdown de marcas
         self.dropdown_busqueda = ft.Dropdown(
             label="Filtrar por Marca",
             options=[ft.dropdown.Option(m) for m in marcas],
             width=250,
             on_change=self.consulta_repuesto
         )
-
-        # Botón de consulta
-        buscar_btn = ft.ElevatedButton(text="Consultar", on_click=self.consulta_repuesto)
-
-        # Header
+        buscar_btn = ft.ElevatedButton(text="Consulta", on_click=self.consulta_repuesto)
         header = ft.Row(
             controls=[
-                ft.Text("Gestión de Repuestos", size=20, weight="bold"),
+                ft.Text("Herramienta de Gestión de Repuestos", size=20, weight="bold"),
                 ft.ElevatedButton(text="Alta", on_click=self.formulario_alta_repuesto),
-                ft.ElevatedButton(text="Volver al Menú", on_click=self.volver_al_menu),
+                ft.ElevatedButton(text="Imprimir"),
+                ft.ElevatedButton(text="<-- Volver al Menú", on_click=self.volver_al_menu),
             ],
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             vertical_alignment=ft.CrossAxisAlignment.CENTER
         )
 
-        # Tabla de repuestos
-        self.data_table = self.create_repuesto_table()
-
-        # Contenedor principal
+        self.tabla_De_Datos = self.create_repuestos_table()
         self.page.add(
             ft.Container(
                 content=ft.Column(
@@ -76,7 +60,7 @@ class Herramienta_Repuesto:
                         self.dropdown_busqueda,
                         buscar_btn,
                         header,
-                        self.data_table
+                        self.tabla_De_Datos
                     ],
                     alignment=ft.MainAxisAlignment.START,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -84,114 +68,87 @@ class Herramienta_Repuesto:
                 padding=20
             )
         )
-        self.page.update()  # Asegurar que se actualice la interfaz
 
     def volver_al_menu(self, e):
         self.page.clean()
         self.main_menu_callback(self.page)
 
-    def create_repuesto_table(self, filtro_marca=None):
+    def create_repuestos_table(self, filtro_marca=None):
         if not self.cursor:
-            return ft.Text("No hay conexión a la base de datos", color="red")
+            return ft.Text("No hay conexión a la base de datos")
 
-        try:
-            if filtro_marca:
-                query = """
-                    SELECT nombre, marca, precio, stock, id
-                    FROM repuestos
-                    WHERE marca = %s
-                    ORDER BY nombre
-                """
-                self.cursor.execute(query, (filtro_marca,))
-            else:
-                query = """
-                    SELECT nombre, marca, precio, stock, id
-                    FROM repuestos
-                    ORDER BY nombre
-                """
-                self.cursor.execute(query)
+        if filtro_marca:
+            consulta = "SELECT id, nombre, marca, precio, stock FROM repuestos WHERE marca = %s ORDER BY nombre"
+            self.cursor.execute(consulta, (filtro_marca,))
+        else:
+            consulta = "SELECT id, nombre, marca, precio, stock FROM repuestos ORDER BY nombre"
+            self.cursor.execute(consulta)
 
-            datos_repuestos = self.cursor.fetchall()
+        datos = self.cursor.fetchall()
+        if not datos:
+            return ft.Text("No hay repuestos registrados", size=16, color="red")
 
-            if not datos_repuestos:
-                return ft.Text("No hay repuestos registrados", size=16, color="red")
-
-            rows = []
-            for repuesto in datos_repuestos:
-                eliminar_button = ft.IconButton(
-                    ft.icons.DELETE,
-                    tooltip="Borrar",
-                    on_click=lambda e, r=repuesto: self.confirmar_eliminar_repuesto(e, r)
-                )
-                actualizar_button = ft.IconButton(
-                    ft.icons.EDIT,
-                    tooltip="Modificar",
-                    on_click=lambda e, r=repuesto: self.actualizar_repuesto(e, r)
-                )
-                rows.append(
-                    ft.DataRow(
-                        cells=[
-                            ft.DataCell(ft.Text(repuesto[0])),
-                            ft.DataCell(ft.Text(repuesto[1])),
-                            ft.DataCell(ft.Text(f"${repuesto[2]:.2f}")),
-                            ft.DataCell(ft.Text(str(repuesto[3]))),
-                            ft.DataCell(ft.Text(str(repuesto[4]))),
-                            ft.DataCell(ft.Row(controls=[eliminar_button, actualizar_button])),
-                        ],
-                    ),
-                )
-
-            return ft.DataTable(
-                columns=[
-                    ft.DataColumn(ft.Text("Nombre")),
-                    ft.DataColumn(ft.Text("Marca")),
-                    ft.DataColumn(ft.Text("Precio")),
-                    ft.DataColumn(ft.Text("Stock")),
-                    ft.DataColumn(ft.Text("Código")),
-                    ft.DataColumn(ft.Text("Acciones")),
-                ],
-                rows=rows,
+        rows = []
+        for repuesto in datos:
+            eliminar_button = ft.Container(
+                content=ft.Image(src="iconos/bote-de-basura.png", width=28, height=28, tooltip="Borrar"),
+                on_click=lambda e, r=repuesto: self.eliminar_repuesto(e, r),
+                ink=True,
+                padding=5
             )
-        except Exception as ex:
-            print("Error al crear la tabla:", ex)
-            return ft.Text("Error al cargar los datos", color="red")
+            actualizar_button = ft.Container(
+                content=ft.Image(src="iconos/modificar.png", width=28, height=28, tooltip="Modificar"),
+                on_click=lambda e, r=repuesto: self.actualizar_repuesto(e, r),
+                ink=True,
+                padding=5
+            )
 
-    def confirmar_eliminar_repuesto(self, e, repuesto):
-        def confirmar_eliminar(e):
-            try:
-                consulta = "DELETE FROM repuestos WHERE id = %s"
-                self.cursor.execute(consulta, (repuesto[4],))
-                self.connection.commit()
-                self.mostrar_repuestos()
-                dialog.open = False
-                self.page.update()
-            except Exception as ex:
-                self.page.add(ft.Text(f"Error al eliminar repuesto: {ex}", color="red"))
-                self.page.update()
+            rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(str(repuesto[0]))),
+                        ft.DataCell(ft.Text(repuesto[1])),
+                        ft.DataCell(ft.Text(repuesto[2])),
+                        ft.DataCell(ft.Text(str(repuesto[3]))),
+                        ft.DataCell(ft.Text(str(repuesto[4]))),
+                        ft.DataCell(ft.Row(controls=[eliminar_button, actualizar_button]))
+                    ]
+                )
+            )
 
-        dialog = ft.AlertDialog(
-            title=ft.Text("Confirmar eliminación"),
-            content=ft.Text(f"¿Estás seguro de eliminar el repuesto {repuesto[0]}?"),
-            actions=[
-                ft.ElevatedButton("Sí", on_click=confirmar_eliminar),
-                ft.ElevatedButton("No", on_click=lambda e: self.page.dialog.open(False)),
+        return ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("ID")),
+                ft.DataColumn(ft.Text("Nombre")),
+                ft.DataColumn(ft.Text("Marca")),
+                ft.DataColumn(ft.Text("Precio")),
+                ft.DataColumn(ft.Text("Stock")),
+                ft.DataColumn(ft.Text("Acciones")),
             ],
+            rows=rows,
         )
-        self.page.dialog = dialog
-        dialog.open = True
-        self.page.update()
+
+    def eliminar_repuesto(self, e, repuesto):
+        if not self.cursor:
+            return
+        try:
+            repuesto_id = repuesto[0]
+            self.cursor.execute("DELETE FROM repuestos WHERE id = %s", (repuesto_id,))
+            self.connection.commit()
+            self.mostrar_repuestos()
+        except Exception as ex:
+            print("Error al eliminar repuesto:", ex)
 
     def actualizar_repuesto(self, e, repuesto):
         self.page.clean()
-        self.repuesto_a_modificar_id = repuesto[4]
-        self.nombre = ft.TextField(label="Nombre", width=300, value=repuesto[0])
-        self.marca = ft.TextField(label="Marca", width=300, value=repuesto[1])
-        self.precio = ft.TextField(label="Precio", width=300, value=str(repuesto[2]))
-        self.stock = ft.TextField(label="Stock", width=300, value=str(repuesto[3]))
+        self.repuesto_a_modificar_id = repuesto[0]
+        self.nombre = ft.TextField(label="Nombre", width=300, value=repuesto[1])
+        self.marca = ft.TextField(label="Marca", width=300, value=repuesto[2])
+        self.precio = ft.TextField(label="Precio", width=300, value=str(repuesto[3]))
+        self.stock = ft.TextField(label="Stock", width=300, value=str(repuesto[4]))
 
         guardar_btn = ft.ElevatedButton(text="Guardar Cambios", on_click=self.guardar_modificacion_repuesto)
         volver_btn = ft.ElevatedButton(text="Volver", on_click=self.mostrar_repuestos)
-
         self.page.add(
             ft.Column(
                 controls=[
@@ -200,28 +157,16 @@ class Herramienta_Repuesto:
                     self.marca,
                     self.precio,
                     self.stock,
-                    ft.Row(controls=[guardar_btn, volver_btn], alignment=ft.MainAxisAlignment.CENTER),
+                    ft.Row(controls=[guardar_btn, volver_btn], alignment=ft.MainAxisAlignment.CENTER)
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER
             )
         )
-        self.page.update()
 
     def guardar_modificacion_repuesto(self, e):
         if not self.cursor:
-            self.page.add(ft.Text("Error: No hay conexión a la base de datos.", color="red"))
-            self.page.update()
             return
-
         try:
-            nombre = self.nombre.value.strip()
-            marca = self.marca.value.strip()
-            precio = float(self.precio.value.strip())
-            stock = int(self.stock.value.strip())
-
-            if not all([nombre, marca]):
-                raise ValueError("Nombre y marca son obligatorios.")
-
             consulta = """
                 UPDATE repuestos
                 SET nombre = %s,
@@ -230,16 +175,18 @@ class Herramienta_Repuesto:
                     stock = %s
                 WHERE id = %s
             """
-            datos = (nombre, marca, precio, stock, self.repuesto_a_modificar_id)
+            datos = (
+                self.nombre.value.strip(),
+                self.marca.value.strip(),
+                float(self.precio.value.strip()),
+                int(self.stock.value.strip()),
+                self.repuesto_a_modificar_id
+            )
             self.cursor.execute(consulta, datos)
             self.connection.commit()
             self.mostrar_repuestos()
-        except ValueError as ve:
-            self.page.add(ft.Text(f"Error: {ve}", color="red"))
-            self.page.update()
         except Exception as ex:
-            self.page.add(ft.Text(f"Error al actualizar repuesto: {ex}", color="red"))
-            self.page.update()
+            print("Error al actualizar repuesto:", ex)
 
     def formulario_alta_repuesto(self, e):
         self.page.clean()
@@ -259,48 +206,43 @@ class Herramienta_Repuesto:
                     self.marca,
                     self.precio,
                     self.stock,
-                    ft.Row(controls=[guardar_btn, volver_btn], alignment=ft.MainAxisAlignment.CENTER),
+                    ft.Row(controls=[guardar_btn, volver_btn], alignment=ft.MainAxisAlignment.CENTER)
                 ],
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER
             )
         )
-        self.page.update()
 
     def guardar_nuevo_repuesto(self, e):
         if not self.cursor:
-            self.page.add(ft.Text("Error: No hay conexión a la base de datos.", color="red"))
-            self.page.update()
             return
-
         try:
-            nombre = self.nombre.value.strip()
-            marca = self.marca.value.strip()
-            precio = float(self.precio.value.strip())
-            stock = int(self.stock.value.strip())
-
-            if not all([nombre, marca]):
-                raise ValueError("Nombre y marca son obligatorios.")
-
-            consulta = """
-                INSERT INTO repuestos (nombre, marca, precio, stock)
-                VALUES (%s, %s, %s, %s)
-            """
-            datos = (nombre, marca, precio, stock)
+            consulta = "INSERT INTO repuestos (nombre, marca, precio, stock) VALUES (%s, %s, %s, %s)"
+            datos = (
+                self.nombre.value.strip(),
+                self.marca.value.strip(),
+                float(self.precio.value.strip()),
+                int(self.stock.value.strip())
+            )
             self.cursor.execute(consulta, datos)
             self.connection.commit()
             self.mostrar_repuestos()
-        except ValueError as ve:
-            self.page.add(ft.Text(f"Error: {ve}", color="red"))
-            self.page.update()
         except Exception as ex:
-            self.page.add(ft.Text(f"Error al guardar repuesto: {ex}", color="red"))
-            self.page.update()
+            print("Error al guardar repuesto:", ex)
 
     def consulta_repuesto(self, e):
         marca_seleccionada = self.dropdown_busqueda.value
         if marca_seleccionada:
-            self.data_table = self.create_repuesto_table(filtro_marca=marca_seleccionada)
+            self.tabla_De_Datos = self.create_repuestos_table(filtro_marca=marca_seleccionada)
         else:
-            self.data_table = self.create_repuesto_table()
-        self.page.controls[0].content.controls[3] = self.data_table
+            self.tabla_De_Datos = self.create_repuestos_table()
+        self.page.controls[0].content.controls[3] = self.tabla_De_Datos
         self.page.update()
+
+def main_menu_callback(page: ft.Page):
+    page.clean()
+    page.add(ft.Text("Menú Principal"))
+
+def main(page: ft.Page):
+    Herramienta_Repuesto(page, main_menu_callback)
+
+# ft.app(target=main)

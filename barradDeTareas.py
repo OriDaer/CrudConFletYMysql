@@ -1,11 +1,12 @@
 import flet as ft
 import mysql.connector
+from presupuesto import Herramienta_Presupuesto
 from ficha_tecnica import Herramienta_FichaTecnica
-from repuesto import Herramienta_Repuesto
+from repuestos import Herramienta_Repuesto
 from empleados import Herramienta_Empleado
 from cliente import Herramienta_Cliente
 from proveedores import Herramienta_Proveedor
-#from usuario import Herramienta_Usuario  xq si no m pega uno arriba d otro
+#from usuario import Herramienta_Usuario 
 
 def connect_to_db():
     try:
@@ -26,9 +27,9 @@ def connect_to_db():
         return None
 
 connection = connect_to_db()
-cursor = connection.cursor() if connection else None
+cursor = connection.cursor() if connection else None # . cursor() es un método que crea un objeto cursor para ejecutar consultas SQL y sirve para interactuar con la base de datos
 
-def identificacion(page: ft.Page):
+"""def identificacion(page: ft.Page):
     page.clean()
     page.title = "Login"
     page.bgcolor = ft.Colors.YELLOW_50
@@ -46,7 +47,7 @@ def identificacion(page: ft.Page):
         WHERE usuario=%s AND contraseña=%s
         '''
         cursor.execute(consulta, (usuario.value, contraseña.value))
-        datos_usuario = cursor.fetchone()
+        datos_usuario = cursor.fetchone() #fetchone() obtiene la primera fila del resultado de la consulta SQL
         if datos_usuario:
             print('Usuario y contraseña correctos', usuario.value)
             page.clean()
@@ -56,7 +57,7 @@ def identificacion(page: ft.Page):
             page.bgcolor = ft.Colors.RED_100
             page.add(
                 ft.Text("Error: Usuario o contraseña incorrectos", color="red"),
-                ft.ElevatedButton("Intentar nuevamente", on_click=lambda e: identificacion(page))
+                ft.ElevatedButton("Intentar nuevamente", on_click=lambda e: identificacion(page)) #lambda e: es una función anónima que se ejecuta al hacer clic en el botón
             )
 
     boton_login = ft.ElevatedButton(text="Iniciar Sesión", on_click=boton_login_click, width=150)
@@ -80,7 +81,7 @@ def identificacion(page: ft.Page):
             width=400,
         )
     )
-
+"""
 def menu_principal(page: ft.Page): #el page: sirve para que se pueda usar el page dentro de la función y el ft.Page es el tipo de dato que se espera 
     page.bgcolor = ft.Colors.PINK_50 # Color de fondo de la página
     page.window.maximized=True#maximiza la ventana
@@ -187,7 +188,7 @@ def menu_principal(page: ft.Page): #el page: sirve para que se pueda usar el pag
         #    ft.PopupMenuItem(content=producto_item,on_click=lambda e: producto(e, page)), 
             ft.PopupMenuItem(content=repuesto_item, on_click=lambda e: repuesto(e, page)),
             ft.PopupMenuItem(content=empleado_item, on_click=lambda e: empleados(e, page)),
-            #ft.PopupMenuItem(content=usuario_item, on_click=lambda e: usuario(e, page)),
+        # ft.PopupMenuItem(content=usuario_item, on_click=lambda e: usuario(e, page)),
         ],
         #--content es el contenido que se muestra en el elemento del menú
         #--tooltip es el texto que se muestra al pasar el mouse por encima del elemento del menú
@@ -196,8 +197,8 @@ def menu_principal(page: ft.Page): #el page: sirve para que se pueda usar el pag
     
     administracion = ft.PopupMenuButton(
         items=[
-            ft.PopupMenuItem(content=ficha_tecnica_item),#, on_click=lambda e: cliente(e, page)),
-            ft.PopupMenuItem(content=presupuesto_icono_item),#, on_click=lambda e:proveedor(e, page)),
+            ft.PopupMenuItem(content=ficha_tecnica_item, on_click=lambda e: ficha_tecnica(e, page)),
+            ft.PopupMenuItem(content=presupuesto_icono_item, on_click=lambda e: presupuesto(e, page))
         ],
         content=ft.Text("Administración"), tooltip="Administración de presupuesto y ficha técnica"
     )
@@ -224,14 +225,14 @@ def menu_principal(page: ft.Page): #el page: sirve para que se pueda usar el pag
             ficha_tecnica_icono,
         ]
     )
-    boton_ficha_tecnica = ft.IconButton(content=boton_ficha_tecnica_item,tooltip="Ficha Técnica")
+    boton_ficha_tecnica = ft.IconButton(content=boton_ficha_tecnica_item,tooltip="Ficha Técnica",on_click=lambda e: ficha_tecnica(e, page))
     #--Presupuesto
     boton_presupuesto_item=ft.Row(
         controls=[
             presupuesto_icono,
         ]
     )
-    boton_presupuesto=ft.IconButton(content=boton_presupuesto_item,tooltip="Presupuesto")
+    boton_presupuesto=ft.IconButton(content=boton_presupuesto_item,tooltip="Presupuesto", on_click=lambda e: presupuesto(e, page))
     page.add(
         ft.Row(
             controls=[
@@ -253,6 +254,9 @@ def menu_principal(page: ft.Page): #el page: sirve para que se pueda usar el pag
     
     )
 
+#def usuario (e,page:ft.page):
+#    Herramienta_Usuario(page, menu_principal)
+
 def cliente(e, page: ft.Page):
     Herramienta_Cliente(page, menu_principal)
 
@@ -265,8 +269,10 @@ def empleados(e, page: ft.Page):
     Herramienta_Empleado(page, menu_principal)
 def ficha_tecnica(e, page: ft.Page):
     Herramienta_FichaTecnica(page, menu_principal)
+def presupuesto(e, page: ft.Page):
+    Herramienta_Presupuesto(page, menu_principal)
 
 def main(page: ft.Page):
-    identificacion(page)
-
+    #identificacion(page)
+    menu_principal(page)
 ft.app(target=main)
