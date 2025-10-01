@@ -27,7 +27,7 @@ class Herramienta_Presupuesto:
         self.cursor = self.connection.cursor() if self.connection else None
         self.mostrar_presupuestos()
 
-    def mostrar_presupuestos(self):
+    def mostrar_presupuestos(self, e=None):
         self.page.clean()
         if not self.cursor:
             self.page.add(ft.Text("No hay conexión a la base de datos"))
